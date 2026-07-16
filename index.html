@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#fff27a" />
+  <title>Поймай релиз — Что послушать</title>
+  <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
+  <style>
+    :root {
+      --yellow: #fff27a;
+      --acid: #ffe900;
+      --black: #090a08;
+      --paper: #fff9c2;
+      --line: rgba(9, 10, 8, .16);
+      --white: #fffef4;
+      --red: #ff5c49;
+      --green: #2dda84;
+      --safe-top: max(14px, env(safe-area-inset-top), var(--tg-content-safe-area-inset-top, 0px));
+      --safe-bottom: max(14px, env(safe-area-inset-bottom), var(--tg-content-safe-area-inset-bottom, 0px));
+      font-family: Inter, ui-rounded, "SF Pro Rounded", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--black);
+      background: var(--black);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; min-height: 100%; margin: 0; overscroll-behavior: none; }
+    body { min-height: 100svh; display: grid; place-items: center; overflow: hidden; }
+    button { font: inherit; color: inherit; }
+
+    .app {
+      position: relative;
+      width: min(100vw, 480px);
+      height: var(--tg-viewport-stable-height, 100svh);
+      max-height: 920px;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 14% 22%, rgba(255,255,255,.48), transparent 20%),
+        linear-gradient(160deg, var(--paper), var(--yellow) 48%, #ffe661);
+    }
+
+    .app::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      opacity: .11;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding: var(--safe-top) 18px var(--safe-bottom);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(14px) scale(.985);
+      transition: opacity .25s ease, transform .25s ease, visibility .25s;
+    }
+    .screen.active { opacity: 1; visibility: visible; transform: none; }
+
+    .brandbar { display: flex; align-items: center; justify-content: space-between; min-height: 46px; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 9px; min-width: 0; font-weight: 860; }
+    .brand span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .record {
+      position: relative;
+      width: 38px;
+      aspect-ratio: 1;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: repeating-radial-gradient(circle, var(--black) 0 3px, #35362f 3.5px 4px, var(--black) 4.5px 7px);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.15);
+    }
+    .record::before { content: ""; position: absolute; inset: 33%; border-radius: 50%; background: var(--acid); border: 2px solid var(--black); }
+    .record::after { content: ""; position: absolute; width: 4px; height: 4px; left: calc(50% - 2px); top: calc(50% - 2px); border-radius: 50%; background: var(--black); }
+    .record.spin { animation: spin 3s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .icon-btn {
+      width: 42px; height: 42px; border: 1.5px solid var(--black); border-radius: 50%; background: rgba(255,255,255,.24);
+      display: grid; place-items: center; cursor: pointer; font-size: 18px; font-weight: 900;
+    }
+
+    .start { justify-content: space-between; }
+    .hero { margin-top: clamp(30px, 7vh, 72px); }
+    .eyebrow { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1.5px solid var(--black); border-radius: 999px; font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; background: rgba(255,255,255,.3); }
+    .hero h1 { margin: 15px 0 12px; max-width: 410px; font-size: clamp(50px, 14vw, 76px); line-height: .88; letter-spacing: -.07em; text-transform: uppercase; }
+    .hero h1 em { display: block; color: var(--yellow); text-shadow: -2px -2px 0 var(--black), 2px -2px 0 var(--black), -2px 2px 0 var(--black), 2px 2px 0 var(--black); font-style: normal; }
+    .hero p { max-width: 360px; margin: 0; font-size: 16px; line-height: 1.34; }
+
+    .genre-cloud { display: flex; flex-wrap: wrap; gap: 7px; margin: 20px 0; transform: rotate(-1deg); }
+    .genre-cloud span { padding: 7px 10px; border-radius: 999px; background: var(--black); color: var(--yellow); font-size: 12px; font-weight: 800; }
+    .genre-cloud span:nth-child(even) { background: transparent; color: var(--black); border: 1.5px solid var(--black); }
+
+    .panel { border: 1.5px solid var(--black); border-radius: 24px; padding: 14px; background: rgba(255,255,255,.25); box-shadow: 6px 6px 0 var(--black); }
+    .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 13px; }
+    .rule { min-height: 69px; padding: 10px; border-radius: 15px; background: rgba(255,255,255,.55); border: 1px solid var(--line); }
+    .rule b { display: block; font-size: 20px; margin-bottom: 3px; }
+    .rule span { display: block; font-size: 10px; line-height: 1.15; text-transform: uppercase; font-weight: 760; }
+
+    .primary {
+      width: 100%; min-height: 58px; border: 0; border-radius: 17px; background: var(--black); color: var(--yellow);
+      font-weight: 850; font-size: 17px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); transition: transform .12s ease;
+    }
+    .primary:active { transform: scale(.98); }
+    .primary.light { background: var(--yellow); color: var(--black); }
+
+    /* Game */
+    .game { padding-left: 10px; padding-right: 10px; }
+    .hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 2px 5px 8px; }
+    .hud-box { min-width: 0; }
+    .hud-box:last-child { text-align: right; }
+    .hud-label { display: block; color: rgba(9,10,8,.58); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .hud-value { display: block; font-size: 20px; font-weight: 900; line-height: 1; margin-top: 3px; }
+    .lives { display: flex; gap: 3px; justify-content: flex-end; font-size: 17px; }
+    .lives span.lost { filter: grayscale(1); opacity: .22; }
+    .pause { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--black); background: transparent; font-weight: 900; cursor: pointer; }
+
+    .collection { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 8px; }
+    .collection-item { min-width: 0; height: 31px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.32); font-size: 8px; font-weight: 840; text-transform: uppercase; overflow: hidden; }
+    .collection-item.caught { background: var(--black); color: var(--yellow); border-color: var(--black); animation: pop .3s ease; }
+    @keyframes pop { 50% { transform: scale(1.12) rotate(-3deg); } }
+
+    .gamefield {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      border: 2px solid var(--black);
+      border-radius: 22px;
+      background:
+        linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.1)),
+        repeating-linear-gradient(90deg, transparent 0 calc(16.666% - 1px), rgba(9,10,8,.06) calc(16.666% - 1px) 16.666%);
+      box-shadow: inset 0 0 40px rgba(255,255,255,.25);
+      touch-action: none;
+    }
+
+    .chutes { position: absolute; z-index: 4; left: 0; right: 0; top: 0; display: grid; grid-template-columns: repeat(6, 1fr); }
+    .chute { min-width: 0; height: 49px; padding-top: 9px; text-align: center; background: var(--black); color: var(--yellow); border-right: 1px solid rgba(255,255,255,.16); font-size: 8px; line-height: 1.05; font-weight: 850; text-transform: uppercase; }
+    .chute::after { content: ""; display: block; width: 24px; height: 7px; margin: 7px auto 0; border-radius: 50%; background: #393a30; box-shadow: inset 0 1px 3px #000; }
+
+    .release {
+      position: absolute;
+      z-index: 3;
+      width: 48px;
+      height: 48px;
+      margin-left: -24px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--white);
+      border: 2px solid var(--black);
+      box-shadow: 3px 4px 0 rgba(9,10,8,.2);
+      will-change: transform;
+    }
+    .release .mini-record { width: 31px; height: 31px; border-radius: 50%; background: repeating-radial-gradient(circle, #080908 0 3px, #34352f 3px 4px); position: relative; }
+    .release .mini-record::after { content: ""; position: absolute; inset: 35%; border-radius: 50%; background: var(--genre-color); border: 1px solid #000; }
+    .release .tag { position: absolute; max-width: 48px; bottom: -12px; padding: 2px 4px; border-radius: 4px; background: var(--black); color: #fff; font-size: 6px; font-weight: 850; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .player {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      bottom: 11px;
+      width: 82px;
+      height: 92px;
+      margin-left: -41px;
+      will-change: transform;
+      pointer-events: none;
+    }
+    .head { position: absolute; z-index: 2; left: 17px; top: 0; width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--black); background: var(--acid); overflow: hidden; box-shadow: 2px 2px 0 var(--black); }
+    .head img { width: 100%; height: 100%; object-fit: cover; object-position: 54% 30%; transform: scale(2.25); transform-origin: 54% 30%; }
+    .body { position: absolute; left: 18px; top: 42px; width: 46px; height: 45px; border-radius: 15px 15px 9px 9px; background: repeating-linear-gradient(90deg, var(--black) 0 7px, #282923 7px 9px); border: 2px solid var(--black); }
+    .basket { position: absolute; z-index: 3; left: 0; bottom: 0; width: 82px; height: 30px; border: 2px solid var(--black); border-top-width: 5px; border-radius: 6px 6px 17px 17px; background: var(--yellow); display: grid; place-items: center; font-size: 8px; font-weight: 900; text-transform: uppercase; }
+
+    .controls { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 8px; padding-top: 8px; }
+    .control-btn { height: 55px; border-radius: 16px; border: 1.5px solid var(--black); background: rgba(255,255,255,.42); font-size: 25px; font-weight: 900; cursor: pointer; user-select: none; }
+    .control-btn.center { font-size: 11px; text-transform: uppercase; line-height: 1.1; }
+
+    .toast { position: absolute; z-index: 9; left: 50%; top: 85px; transform: translate(-50%, -12px); padding: 9px 13px; border-radius: 999px; background: var(--black); color: var(--yellow); opacity: 0; pointer-events: none; font-size: 11px; font-weight: 850; white-space: nowrap; transition: .2s ease; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .overlay { position: absolute; z-index: 10; inset: 0; display: none; place-items: center; padding: 25px; background: rgba(9,10,8,.58); backdrop-filter: blur(8px); }
+    .overlay.show { display: grid; }
+    .modal { width: 100%; max-width: 340px; padding: 21px; border-radius: 24px; background: var(--yellow); border: 2px solid var(--black); box-shadow: 8px 8px 0 var(--black); text-align: center; }
+    .modal h2 { margin: 5px 0 7px; font-size: 33px; letter-spacing: -.04em; }
+    .modal p { margin: 0 0 17px; line-height: 1.35; font-size: 14px; }
+    .modal-actions { display: grid; gap: 8px; }
+    .secondary { min-height: 48px; border: 1.5px solid var(--black); border-radius: 14px; background: transparent; font-weight: 800; cursor: pointer; }
+
+    /* Result */
+    .result { text-align: center; justify-content: space-between; background: var(--black); color: var(--yellow); }
+    .result .brandbar { color: var(--yellow); }
+    .result .record { background: repeating-radial-gradient(circle, var(--yellow) 0 3px, #8c833e 3.5px 4px, var(--yellow) 4.5px 7px); }
+    .result .record::before { background: var(--black); border-color: var(--yellow); }
+    .result .record::after { background: var(--yellow); }
+    .reward-visual { position: relative; width: min(70vw, 270px); margin: auto; aspect-ratio: 1; display: grid; place-items: center; }
+    .reward-disc { position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle, #050505 0 8px, #292a23 9px 10px); border: 2px solid var(--yellow); animation: spin 6s linear infinite; }
+    .reward-disc::before { content: ""; position: absolute; inset: 31%; border-radius: 50%; background: var(--yellow); }
+    .reward-disc::after { content: ""; position: absolute; width: 12px; height: 12px; left: calc(50% - 6px); top: calc(50% - 6px); border-radius: 50%; background: var(--black); }
+    .reward-day { position: relative; z-index: 2; display: grid; place-items: center; width: 104px; height: 104px; border-radius: 50%; color: var(--black); font-size: 14px; font-weight: 900; line-height: .88; text-transform: uppercase; transform: rotate(-7deg); }
+    .reward-day b { display: block; font-size: 54px; letter-spacing: -.08em; }
+    .result-copy .eyebrow { border-color: var(--yellow); }
+    .result h1 { margin: 11px auto 8px; max-width: 390px; font-size: clamp(42px, 12vw, 64px); line-height: .9; letter-spacing: -.065em; text-transform: uppercase; }
+    .result p { margin: 0 auto; max-width: 340px; color: rgba(255,242,122,.72); font-size: 14px; line-height: 1.35; }
+    .result-actions { display: grid; gap: 8px; }
+    .result-note { font-size: 10px; color: rgba(255,242,122,.55); line-height: 1.3; }
+
+    @media (max-height: 690px) {
+      .hero { margin-top: 16px; }
+      .hero h1 { font-size: 48px; margin: 10px 0; }
+      .genre-cloud { margin: 12px 0; }
+      .rules { margin-bottom: 8px; }
+      .reward-visual { width: 190px; }
+      .result h1 { font-size: 40px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <section class="screen start active" id="startScreen" aria-labelledby="gameTitle">
+      <header class="brandbar">
+        <div class="brand"><i class="record spin" aria-hidden="true"></i><span>ЧТО ПОСЛУШАТЬ</span></div>
+        <span class="eyebrow">мини-игра</span>
+      </header>
+
+      <div class="hero">
+        <span class="eyebrow">релизная комната</span>
+        <h1 id="gameTitle">Поймай <em>релиз</em></h1>
+        <p>Помоги главреду разобрать музыкальный поток. Собери по одному релизу каждого жанра — и забирай бонус.</p>
+        <div class="genre-cloud" aria-label="Жанры">
+          <span>инди</span><span>поп</span><span>рок</span><span>андеграунд</span><span>электроника</span><span>фолк</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="rules">
+          <div class="rule"><b>6</b><span>жанров собрать</span></div>
+          <div class="rule"><b>3</b><span>пропуска до стопа</span></div>
+          <div class="rule"><b>+1</b><span>день премиума</span></div>
+        </div>
+        <button class="primary" id="startBtn">Начать игру&nbsp; →</button>
+      </div>
+    </section>
+
+    <section class="screen game" id="gameScreen" aria-label="Игровое поле">
+      <div class="hud">
+        <div class="hud-box"><span class="hud-label">Очки</span><strong class="hud-value" id="score">000</strong></div>
+        <button class="pause" id="pauseBtn" aria-label="Пауза">Ⅱ</button>
+        <div class="hud-box"><span class="hud-label">Эфир</span><div class="lives" id="lives" aria-label="Три жизни"><span>♥</span><span>♥</span><span>♥</span></div></div>
+      </div>
+
+      <div class="collection" id="collection" aria-label="Собранные жанры"></div>
+
+      <div class="gamefield" id="gamefield">
+        <div class="chutes" id="chutes"></div>
+        <div class="player" id="player">
+          <div class="head"><img src="assets/glavred.jpeg" alt="Главный редактор" /></div>
+          <div class="body"></div>
+          <div class="basket">в ротацию</div>
+        </div>
+        <div class="toast" id="toast" role="status"></div>
+      </div>
+
+      <div class="controls" aria-label="Управление">
+        <button class="control-btn" id="leftBtn" aria-label="Влево">←</button>
+        <button class="control-btn center" id="centerBtn">тащи главреда<br>или жми</button>
+        <button class="control-btn" id="rightBtn" aria-label="Вправо">→</button>
+      </div>
+
+      <div class="overlay" id="pauseOverlay">
+        <div class="modal">
+          <span class="eyebrow">пластинка на паузе</span>
+          <h2>Передохнём?</h2>
+          <p>Все релизы подождут. Продолжите с того же места.</p>
+          <div class="modal-actions">
+            <button class="primary" id="resumeBtn">Продолжить</button>
+            <button class="secondary" id="restartFromPauseBtn">Начать заново</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="failOverlay">
+        <div class="modal">
+          <span class="eyebrow">релизный завал</span>
+          <h2>Не всё поймано</h2>
+          <p id="failCopy">Попробуйте ещё раз — до бонуса осталось совсем немного.</p>
+          <div class="modal-actions">
+            <button class="primary" id="retryBtn">Ещё попытка</button>
+            <button class="secondary" id="homeBtn">На главную</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen result" id="resultScreen" aria-labelledby="resultTitle">
+      <header class="brandbar">
+        <div class="brand"><i class="record" aria-hidden="true"></i><span>ЧТО ПОСЛУШАТЬ</span></div>
+        <span class="eyebrow">все 6 жанров</span>
+      </header>
+
+      <div class="reward-visual" aria-hidden="true">
+        <div class="reward-disc"></div>
+        <div class="reward-day"><span><b>+1</b>день</span></div>
+      </div>
+
+      <div class="result-copy">
+        <span class="eyebrow">идеальная подборка</span>
+        <h1 id="resultTitle">Вы поймали все релизы!</h1>
+        <p>Один день премиум-подписки ждёт вас. В прототипе награда показывается без реальной активации.</p>
+      </div>
+
+      <div class="result-actions">
+        <button class="primary light" id="claimBtn">Активировать +1 день</button>
+        <button class="secondary" id="playAgainBtn" style="color:var(--yellow);border-color:var(--yellow)">Сыграть ещё раз</button>
+        <span class="result-note" id="resultNote">Демо-режим: подписка не будет изменена</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const GENRES = [
+        { id: 'indie', label: 'Инди', short: 'инди', color: '#d7ff58' },
+        { id: 'pop', label: 'Поп', short: 'поп', color: '#ff77be' },
+        { id: 'rock', label: 'Рок', short: 'рок', color: '#ff654f' },
+        { id: 'underground', label: 'Андеграунд', short: 'андер', color: '#a98cff' },
+        { id: 'electronic', label: 'Электроника', short: 'электро', color: '#4fe2e0' },
+        { id: 'folk', label: 'Фолк', short: 'фолк', color: '#ffae4d' }
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const screens = { start: $('startScreen'), game: $('gameScreen'), result: $('resultScreen') };
+      const field = $('gamefield');
+      const player = $('player');
+      const telegram = window.Telegram?.WebApp;
+
+      let state = null;
+      let frameId = 0;
+      let lastTime = 0;
+      let spawnClock = 0;
+      let toastTimer = 0;
+      let pointerActive = false;
+
+      function tgReady() {
+        if (!telegram) return;
+        telegram.ready();
+        telegram.expand();
+        telegram.setHeaderColor?.('#fff27a');
+        telegram.setBackgroundColor?.('#fff27a');
+        telegram.disableVerticalSwipes?.();
+      }
+
+      function haptic(type = 'light') {
+        try { telegram?.HapticFeedback?.impactOccurred(type); } catch (_) {}
+      }
+
+      function showScreen(name) {
+        Object.entries(screens).forEach(([key, el]) => el.classList.toggle('active', key === name));
+      }
+
+      function renderStatic() {
+        $('chutes').innerHTML = GENRES.map(g => `<div class="chute">${g.short}</div>`).join('');
+        $('collection').innerHTML = GENRES.map(g => `<div class="collection-item" id="genre-${g.id}" title="${g.label}">${g.short}</div>`).join('');
+      }
+
+      function freshState() {
+        return {
+          running: false,
+          paused: false,
+          score: 0,
+          misses: 0,
+          caught: new Set(),
+          items: [],
+          playerX: 0,
+          elapsed: 0,
+          spawnEvery: 1000
+        };
+      }
+
+      function resetGame() {
+        cancelAnimationFrame(frameId);
+        field.querySelectorAll('.release').forEach(el => el.remove());
+        state = freshState();
+        lastTime = 0;
+        spawnClock = 500;
+        $('score').textContent = '000';
+        [...$('lives').children].forEach(el => el.classList.remove('lost'));
+        GENRES.forEach(g => $(`genre-${g.id}`).classList.remove('caught'));
+        $('pauseOverlay').classList.remove('show');
+        $('failOverlay').classList.remove('show');
+        showScreen('game');
+        requestAnimationFrame(() => {
+          const bounds = field.getBoundingClientRect();
+          state.playerX = bounds.width / 2;
+          updatePlayer();
+          state.running = true;
+          frameId = requestAnimationFrame(loop);
+        });
+      }
+
+      function spawnRelease() {
+        const bounds = field.getBoundingClientRect();
+        const genreIndex = Math.floor(Math.random() * GENRES.length);
+        const genre = GENRES[genreIndex];
+        const x = bounds.width * ((genreIndex + .5) / GENRES.length);
+        const element = document.createElement('div');
+        element.className = 'release';
+        element.style.setProperty('--genre-color', genre.color);
+        element.innerHTML = `<i class="mini-record"></i><span class="tag">${genre.label}</span>`;
+        field.appendChild(element);
+        const item = {
+          genre,
+          x,
+          y: 50,
+          speed: 126 + Math.min(96, state.elapsed * 2.4) + Math.random() * 28,
+          rotation: Math.random() * 20 - 10,
+          element
+        };
+        state.items.push(item);
+        placeItem(item);
+      }
+
+      function placeItem(item) {
+        item.element.style.transform = `translate(${item.x}px, ${item.y}px) rotate(${item.rotation + item.y * .08}deg)`;
+      }
+
+      function updatePlayer() {
+        const width = field.clientWidth;
+        state.playerX = Math.max(43, Math.min(width - 43, state.playerX));
+        player.style.transform = `translateX(${state.playerX - width / 2}px)`;
+      }
+
+      function movePlayer(delta) {
+        if (!state?.running || state.paused) return;
+        state.playerX += delta;
+        updatePlayer();
+        haptic('light');
+      }
+
+      function showToast(text) {
+        const toast = $('toast');
+        toast.textContent = text;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 850);
+      }
+
+      function catchItem(item) {
+        item.element.remove();
+        const first = !state.caught.has(item.genre.id);
+        state.caught.add(item.genre.id);
+        state.score += first ? 100 : 25;
+        $('score').textContent = String(state.score).padStart(3, '0');
+        $(`genre-${item.genre.id}`).classList.add('caught');
+        showToast(first ? `${item.genre.label}: в подборке! +100` : `${item.genre.label}: ещё один +25`);
+        haptic(first ? 'medium' : 'light');
+        if (state.caught.size === GENRES.length) winGame();
+      }
+
+      function missItem(item) {
+        item.element.remove();
+        state.misses += 1;
+        [...$('lives').children][state.misses - 1]?.classList.add('lost');
+        showToast('Релиз пролетел мимо');
+        haptic('heavy');
+        if (state.misses >= 3) failGame();
+      }
+
+      function loop(time) {
+        if (!state?.running || state.paused) return;
+        if (!lastTime) lastTime = time;
+        const dt = Math.min(34, time - lastTime) / 1000;
+        lastTime = time;
+        state.elapsed += dt;
+        state.spawnEvery = Math.max(560, 1000 - state.elapsed * 10);
+        spawnClock += dt * 1000;
+
+        if (spawnClock >= state.spawnEvery) {
+          spawnClock = 0;
+          spawnRelease();
+        }
+
+        const catchY = field.clientHeight - 77;
+        const floorY = field.clientHeight + 15;
+        const survivors = [];
+
+        for (const item of state.items) {
+          item.y += item.speed * dt;
+          const closeX = Math.abs(item.x - state.playerX) < 55;
+          if (item.y >= catchY && item.y <= catchY + 52 && closeX) {
+            catchItem(item);
+          } else if (item.y > floorY) {
+            missItem(item);
+          } else {
+            placeItem(item);
+            survivors.push(item);
+          }
+          if (!state.running) break;
+        }
+        state.items = survivors;
+        if (state.running) frameId = requestAnimationFrame(loop);
+      }
+
+      function pauseGame() {
+        if (!state?.running) return;
+        state.paused = true;
+        $('pauseOverlay').classList.add('show');
+      }
+
+      function resumeGame() {
+        if (!state?.running) return;
+        $('pauseOverlay').classList.remove('show');
+        state.paused = false;
+        lastTime = 0;
+        frameId = requestAnimationFrame(loop);
+      }
+
+      function stopGame() {
+        if (!state) return;
+        state.running = false;
+        state.items.forEach(item => item.element.remove());
+        state.items = [];
+        cancelAnimationFrame(frameId);
+      }
+
+      function winGame() {
+        const finalScore = state.score;
+        stopGame();
+        $('resultNote').textContent = `Демо-режим · результат ${finalScore} · подписка не изменена`;
+        haptic('heavy');
+        try { telegram?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
+        setTimeout(() => showScreen('result'), 220);
+      }
+
+      function failGame() {
+        const missing = GENRES.filter(g => !state.caught.has(g.id)).map(g => g.label.toLowerCase());
+        stopGame();
+        $('failCopy').textContent = `Не хватило: ${missing.join(', ')}. Попробуйте ещё раз — жанры уже перемешаны.`;
+        $('failOverlay').classList.add('show');
+        try { telegram?.HapticFeedback?.notificationOccurred('error'); } catch (_) {}
+      }
+
+      function claimReward() {
+        const button = $('claimBtn');
+        button.textContent = '✓ Демо-награда активирована';
+        button.disabled = true;
+        $('resultNote').textContent = 'Готово! В рабочей версии здесь подключается API подписки.';
+        haptic('heavy');
+        try { telegram?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
+      }
+
+      function positionFromPointer(event) {
+        if (!state?.running || state.paused) return;
+        const bounds = field.getBoundingClientRect();
+        state.playerX = event.clientX - bounds.left;
+        updatePlayer();
+      }
+
+      $('startBtn').addEventListener('click', resetGame);
+      $('pauseBtn').addEventListener('click', pauseGame);
+      $('resumeBtn').addEventListener('click', resumeGame);
+      $('restartFromPauseBtn').addEventListener('click', resetGame);
+      $('retryBtn').addEventListener('click', resetGame);
+      $('playAgainBtn').addEventListener('click', () => { $('claimBtn').disabled = false; $('claimBtn').textContent = 'Активировать +1 день'; resetGame(); });
+      $('claimBtn').addEventListener('click', claimReward);
+      $('homeBtn').addEventListener('click', () => { $('failOverlay').classList.remove('show'); showScreen('start'); });
+      $('leftBtn').addEventListener('click', () => movePlayer(-field.clientWidth / 6));
+      $('rightBtn').addEventListener('click', () => movePlayer(field.clientWidth / 6));
+      $('centerBtn').addEventListener('click', () => { state.playerX = field.clientWidth / 2; updatePlayer(); });
+
+      field.addEventListener('pointerdown', (event) => { pointerActive = true; field.setPointerCapture?.(event.pointerId); positionFromPointer(event); });
+      field.addEventListener('pointermove', (event) => { if (pointerActive) positionFromPointer(event); });
+      field.addEventListener('pointerup', () => { pointerActive = false; });
+      field.addEventListener('pointercancel', () => { pointerActive = false; });
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') movePlayer(-field.clientWidth / 6);
+        if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') movePlayer(field.clientWidth / 6);
+        if (event.key === ' ' || event.key === 'Escape') state?.paused ? resumeGame() : pauseGame();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state?.running && !state.paused) pauseGame();
+      });
+
+      window.addEventListener('resize', () => { if (state) updatePlayer(); });
+
+      renderStatic();
+      tgReady();
+    })();
+  </script>
+</body>
+</html>
