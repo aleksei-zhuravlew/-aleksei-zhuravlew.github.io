@@ -64,7 +64,9 @@
     .screen.active { opacity: 1; visibility: visible; transform: none; }
 
     .brandbar { display: flex; align-items: center; justify-content: space-between; min-height: 46px; gap: 12px; }
+    .header-tools { display: grid; justify-items: end; gap: 5px; flex: 0 0 auto; }
     .brand-actions { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+    .contact-button { min-height: 27px; padding: 4px 11px; border: 1.5px solid var(--black); border-radius: 999px; background: transparent; font-size: 9px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; }
     .sound-toggle { width: 36px; height: 36px; padding: 0; border: 1.5px solid currentColor; border-radius: 50%; background: rgba(255,255,255,.24); color: inherit; font-size: 17px; font-weight: 900; line-height: 1; cursor: pointer; }
     .sound-toggle[aria-pressed="false"] { opacity: .48; }
     .brand { display: flex; align-items: center; gap: 9px; min-width: 0; font-weight: 860; }
@@ -208,6 +210,8 @@
     .modal h2 { margin: 5px 0 7px; font-size: 33px; letter-spacing: -.04em; }
     .modal p { margin: 0 0 17px; line-height: 1.35; font-size: 14px; }
     .modal-actions { display: grid; gap: 8px; }
+    .contact-telegram { display: grid; place-items: center; text-decoration: none; }
+    .contact-handle { display: block; margin-top: 5px; font-size: 12px; font-weight: 850; opacity: .62; }
     .secondary { width: 100%; min-height: 48px; border: 1.5px solid var(--black); border-radius: 14px; background: transparent; font-weight: 800; cursor: pointer; }
 
     /* Result */
@@ -266,7 +270,7 @@
     <section class="screen start active" id="startScreen" aria-labelledby="gameTitle">
       <header class="brandbar">
         <div class="brand"><i class="record" aria-hidden="true"></i><span class="brand-copy"><span class="brand-name">ЧТО ПОСЛУШАТЬ</span><span class="brand-credit">Developed by Alexey Zhuravlev</span></span></div>
-        <span class="brand-actions"><span class="eyebrow">мини-игра</span><button class="sound-toggle" type="button" aria-label="Выключить звук" aria-pressed="true">♪</button></span>
+        <span class="header-tools"><span class="brand-actions"><span class="eyebrow">мини-игра</span><button class="sound-toggle" type="button" aria-label="Выключить звук" aria-pressed="true">♪</button></span><button class="contact-button" id="contactBtn" type="button">Контакты</button></span>
       </header>
 
       <div class="hero">
@@ -286,6 +290,18 @@
         </div>
         <button class="primary" id="startBtn">Начать игру&nbsp; →</button>
         <button class="secondary" id="leaderboardBtn">Таблица рекордов</button>
+      </div>
+
+      <div class="overlay" id="contactOverlay" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+        <div class="modal">
+          <span class="eyebrow">контакты</span>
+          <h2 id="contactTitle">Разработчик игры</h2>
+          <p>По вопросам игры, идеям и сотрудничеству напишите Алексею Журавлеву.<span class="contact-handle">@prostopti4ka</span></p>
+          <div class="modal-actions">
+            <a class="primary contact-telegram" id="developerTelegramLink" href="https://t.me/prostopti4ka" target="_blank" rel="noopener noreferrer">Написать в Telegram&nbsp; →</a>
+            <button class="secondary" id="contactCloseBtn" type="button">Закрыть</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -816,6 +832,18 @@
         if (!button.classList.contains('sound-toggle')) playSound('click');
       }, { passive: true });
       document.querySelectorAll('.sound-toggle').forEach(button => button.addEventListener('click', toggleSound));
+
+      $('contactBtn').addEventListener('click', () => $('contactOverlay').classList.add('show'));
+      $('contactCloseBtn').addEventListener('click', () => $('contactOverlay').classList.remove('show'));
+      $('contactOverlay').addEventListener('click', event => {
+        if (event.target === $('contactOverlay')) $('contactOverlay').classList.remove('show');
+      });
+      $('developerTelegramLink').addEventListener('click', event => {
+        if (telegram?.openTelegramLink) {
+          event.preventDefault();
+          telegram.openTelegramLink('https://t.me/prostopti4ka');
+        }
+      });
 
       $('startBtn').addEventListener('click', resetGame);
       $('leaderboardBtn').addEventListener('click', openLeaderboard);
