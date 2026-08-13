@@ -9,6 +9,7 @@ services:
       - "127.0.0.1:8081:80"
     volumes:
       - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./audio:/usr/share/nginx/html/audio:ro
     networks:
       - game
 
