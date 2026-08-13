@@ -92,8 +92,8 @@
     .hero p { max-width: 360px; margin: 0; font-size: 16px; line-height: 1.34; }
 
     .genre-cloud { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; width: min(100%, 360px); margin: 18px 0 4px; transform: none; }
-    .genre-cloud span { display: grid; place-items: center; min-width: 0; min-height: 32px; padding: 6px 7px; border: 1.5px solid transparent; border-radius: 999px; background: var(--black); color: var(--yellow); font-size: 11px; font-weight: 800; line-height: 1; white-space: nowrap; }
-    .genre-cloud span:nth-child(even) { background: transparent; color: var(--black); border: 1.5px solid var(--black); }
+    .genre-cloud span { display: grid; place-items: center; min-width: 0; min-height: 32px; padding: 6px 7px; border: 1.5px solid var(--black); border-radius: 999px; background: transparent; color: var(--black); font-size: 11px; font-weight: 800; line-height: 1; white-space: nowrap; transition: background-color .42s ease, color .42s ease, box-shadow .42s ease, transform .42s ease; }
+    .genre-cloud span.is-active { background: var(--black); color: var(--yellow); box-shadow: 0 2px 0 rgba(9,10,8,.12); transform: translateY(-1px); }
 
     .panel { display: grid; gap: 10px; border: 1.5px solid var(--black); border-radius: 24px; padding: 14px; background: rgba(255,255,255,.25); box-shadow: 6px 6px 0 var(--black); }
     .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 3px; }
@@ -267,7 +267,7 @@
         <h1 id="gameTitle">Поймай <em>релиз</em></h1>
         <p>Помоги главреду разобрать музыкальный поток. Собери по одному релизу каждого жанра — и забирай бонус.</p>
         <div class="genre-cloud" aria-label="Жанры">
-          <span>инди</span><span>поп</span><span>рок</span><span>андеграунд</span><span>электроника</span><span>фолк</span>
+          <span class="is-active">инди</span><span>поп</span><span class="is-active">рок</span><span>андеграунд</span><span class="is-active">электроника</span><span>фолк</span>
         </div>
       </div>
 
@@ -431,6 +431,22 @@
       function renderStatic() {
         $('chutes').innerHTML = GENRES.map(g => `<div class="chute">${g.short}</div>`).join('');
         $('collection').innerHTML = GENRES.map(g => `<div class="collection-item" id="genre-${g.id}" title="${g.label}">${g.short}</div>`).join('');
+      }
+
+      function startGenreCycle() {
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        const pills = [...document.querySelectorAll('.genre-cloud span')];
+        const pairs = [[0, 1], [2, 3], [4, 5]];
+        let step = 0;
+        window.setInterval(() => {
+          if (document.hidden || !screens.start.classList.contains('active')) return;
+          const pair = pairs[step % pairs.length];
+          const activeIndex = pair.find(index => pills[index].classList.contains('is-active'));
+          const nextIndex = pair.find(index => index !== activeIndex);
+          pills[activeIndex].classList.remove('is-active');
+          pills[nextIndex].classList.add('is-active');
+          step += 1;
+        }, 1050);
       }
 
       function freshState() {
@@ -755,6 +771,7 @@
       window.addEventListener('resize', () => { if (state) updatePlayer(); });
 
       renderStatic();
+      startGenreCycle();
       tgReady();
     })();
   </script>
