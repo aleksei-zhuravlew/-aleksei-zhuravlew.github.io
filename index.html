@@ -83,19 +83,20 @@
       display: grid; place-items: center; cursor: pointer; font-size: 18px; font-weight: 900;
     }
 
-    .start { justify-content: space-between; }
-    .hero { margin-top: clamp(30px, 7vh, 72px); }
+    .start { justify-content: space-between; gap: 16px; overflow-y: auto; }
+    .start .brandbar, .start .hero, .start .panel { flex: 0 0 auto; }
+    .hero { margin-top: clamp(22px, 5vh, 54px); }
     .eyebrow { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1.5px solid var(--black); border-radius: 999px; font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; background: rgba(255,255,255,.3); }
     .hero h1 { margin: 15px 0 12px; max-width: 410px; font-size: clamp(50px, 14vw, 76px); line-height: .88; letter-spacing: -.07em; text-transform: uppercase; }
     .hero h1 em { display: block; color: var(--yellow); text-shadow: -2px -2px 0 var(--black), 2px -2px 0 var(--black), -2px 2px 0 var(--black), 2px 2px 0 var(--black); font-style: normal; }
     .hero p { max-width: 360px; margin: 0; font-size: 16px; line-height: 1.34; }
 
-    .genre-cloud { display: flex; flex-wrap: wrap; gap: 7px; margin: 20px 0; transform: rotate(-1deg); }
-    .genre-cloud span { padding: 7px 10px; border-radius: 999px; background: var(--black); color: var(--yellow); font-size: 12px; font-weight: 800; }
+    .genre-cloud { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; width: min(100%, 360px); margin: 18px 0 4px; transform: none; }
+    .genre-cloud span { display: grid; place-items: center; min-width: 0; min-height: 32px; padding: 6px 7px; border: 1.5px solid transparent; border-radius: 999px; background: var(--black); color: var(--yellow); font-size: 11px; font-weight: 800; line-height: 1; white-space: nowrap; }
     .genre-cloud span:nth-child(even) { background: transparent; color: var(--black); border: 1.5px solid var(--black); }
 
-    .panel { border: 1.5px solid var(--black); border-radius: 24px; padding: 14px; background: rgba(255,255,255,.25); box-shadow: 6px 6px 0 var(--black); }
-    .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 13px; }
+    .panel { display: grid; gap: 10px; border: 1.5px solid var(--black); border-radius: 24px; padding: 14px; background: rgba(255,255,255,.25); box-shadow: 6px 6px 0 var(--black); }
+    .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 3px; }
     .rule { min-height: 69px; padding: 10px; border-radius: 15px; background: rgba(255,255,255,.55); border: 1px solid var(--line); }
     .rule b { display: block; font-size: 20px; margin-bottom: 3px; }
     .rule span { display: block; font-size: 10px; line-height: 1.15; text-transform: uppercase; font-weight: 760; }
@@ -200,7 +201,7 @@
     .modal h2 { margin: 5px 0 7px; font-size: 33px; letter-spacing: -.04em; }
     .modal p { margin: 0 0 17px; line-height: 1.35; font-size: 14px; }
     .modal-actions { display: grid; gap: 8px; }
-    .secondary { min-height: 48px; border: 1.5px solid var(--black); border-radius: 14px; background: transparent; font-weight: 800; cursor: pointer; }
+    .secondary { width: 100%; min-height: 48px; border: 1.5px solid var(--black); border-radius: 14px; background: transparent; font-weight: 800; cursor: pointer; }
 
     /* Result */
     .result { text-align: center; justify-content: space-between; background: var(--black); color: var(--yellow); }
@@ -231,12 +232,24 @@
     .leaderboard-actions { display: grid; gap: 7px; margin-top: auto; }
 
     @media (max-height: 690px) {
-      .hero { margin-top: 16px; }
-      .hero h1 { font-size: 48px; margin: 10px 0; }
-      .genre-cloud { margin: 12px 0; }
-      .rules { margin-bottom: 8px; }
+      .start { gap: 11px; }
+      .hero { margin-top: 8px; }
+      .hero h1 { font-size: 46px; margin: 9px 0; }
+      .hero p { font-size: 14px; }
+      .genre-cloud { margin: 10px 0 2px; }
+      .panel { gap: 7px; padding: 11px; }
+      .rules { margin-bottom: 1px; }
+      .rule { min-height: 61px; padding: 8px; }
+      .primary { min-height: 52px; }
+      .secondary { min-height: 44px; }
       .reward-visual { width: 190px; }
       .result h1 { font-size: 40px; }
+    }
+
+    @media (max-width: 350px) {
+      .screen { padding-left: 12px; padding-right: 12px; }
+      .genre-cloud { gap: 5px; }
+      .genre-cloud span { padding-inline: 4px; font-size: 10px; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
   </style>
