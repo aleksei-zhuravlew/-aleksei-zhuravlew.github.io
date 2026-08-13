@@ -1,0 +1,57 @@
+name: release-catcher
+
+services:
+  web:
+    image: nginx:alpine
+    container_name: release-catcher
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    networks:
+      - game
+
+  api:
+    build:
+      context: ./server
+    container_name: release-catcher-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8082:8080"
+    volumes:
+      - game-data:/data
+    networks:
+      - game
+
+  https:
+    image: caddy:2-alpine
+    container_name: release-catcher-https
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    ports:
+      - "80:80"
+      - "8443:443"
+      - "8443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - game
+
+networks:
+  game:
+    name: release-catcher-net
+
+volumes:
+  game-data:
+    name: release-catcher-data
+  caddy-data:
+    name: release-catcher-caddy-data
+  caddy-config:
+    name: release-catcher-caddy-config
