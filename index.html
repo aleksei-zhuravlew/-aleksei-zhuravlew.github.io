@@ -65,7 +65,9 @@
 
     .brandbar { display: flex; align-items: center; justify-content: space-between; min-height: 46px; gap: 12px; }
     .brand { display: flex; align-items: center; gap: 9px; min-width: 0; font-weight: 860; }
-    .brand span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .brand-copy { display: grid; min-width: 0; gap: 2px; line-height: 1; }
+    .brand-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .brand-credit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8px; font-weight: 650; letter-spacing: .035em; opacity: .48; }
     .record {
       width: 38px;
       aspect-ratio: 1;
@@ -258,7 +260,7 @@
   <main class="app" id="app">
     <section class="screen start active" id="startScreen" aria-labelledby="gameTitle">
       <header class="brandbar">
-        <div class="brand"><i class="record" aria-hidden="true"></i><span>ЧТО ПОСЛУШАТЬ</span></div>
+        <div class="brand"><i class="record" aria-hidden="true"></i><span class="brand-copy"><span class="brand-name">ЧТО ПОСЛУШАТЬ</span><span class="brand-credit">Developed by Alexey Zhuravlev</span></span></div>
         <span class="eyebrow">мини-игра</span>
       </header>
 
@@ -284,7 +286,7 @@
 
     <section class="screen leaderboard" id="leaderboardScreen" aria-labelledby="leaderboardTitle">
       <header class="brandbar">
-        <div class="brand"><i class="record" aria-hidden="true"></i><span>ЧТО ПОСЛУШАТЬ</span></div>
+        <div class="brand"><i class="record" aria-hidden="true"></i><span class="brand-copy"><span class="brand-name">ЧТО ПОСЛУШАТЬ</span><span class="brand-credit">Developed by Alexey Zhuravlev</span></span></div>
         <span class="eyebrow">топ-10</span>
       </header>
       <div class="leaderboard-head">
@@ -361,7 +363,7 @@
 
     <section class="screen result" id="resultScreen" aria-labelledby="resultTitle">
       <header class="brandbar">
-        <div class="brand"><i class="record" aria-hidden="true"></i><span>ЧТО ПОСЛУШАТЬ</span></div>
+        <div class="brand"><i class="record" aria-hidden="true"></i><span class="brand-copy"><span class="brand-name">ЧТО ПОСЛУШАТЬ</span><span class="brand-credit">Developed by Alexey Zhuravlev</span></span></div>
         <span class="eyebrow">все 6 жанров</span>
       </header>
 
