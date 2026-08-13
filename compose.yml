@@ -46,7 +46,7 @@ services:
 
 networks:
   game:
-    name: release-catcher-net
+    name: release-catcher-app-net
 
 volumes:
   game-data:
