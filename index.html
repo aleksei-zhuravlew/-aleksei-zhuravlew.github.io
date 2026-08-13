@@ -216,6 +216,20 @@
     .result-actions { display: grid; gap: 8px; }
     .result-note { font-size: 10px; color: rgba(255,242,122,.55); line-height: 1.3; }
 
+    .leaderboard { background: linear-gradient(160deg, var(--paper), var(--yellow) 58%, #ffe661); }
+    .leaderboard-head { margin: 28px 0 16px; }
+    .leaderboard-head h1 { margin: 8px 0 5px; font-size: clamp(42px, 12vw, 62px); line-height: .88; letter-spacing: -.06em; text-transform: uppercase; }
+    .leaderboard-head p { margin: 0; max-width: 340px; font-size: 13px; line-height: 1.35; }
+    .leaderboard-panel { min-height: 0; flex: 1; display: flex; flex-direction: column; padding: 14px; border: 2px solid var(--black); border-radius: 24px; background: rgba(255,254,244,.64); box-shadow: 5px 5px 0 var(--black); }
+    .leaderboard-list { min-height: 0; overflow: auto; display: grid; align-content: start; gap: 7px; margin-bottom: 12px; }
+    .rank-row { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center; gap: 9px; min-height: 42px; padding: 7px 10px; border: 1.5px solid var(--black); border-radius: 13px; background: var(--white); font-size: 13px; font-weight: 800; }
+    .rank-row.me { background: var(--acid); }
+    .rank-pos { font-size: 17px; font-weight: 950; }
+    .rank-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-score { font-size: 16px; font-weight: 950; }
+    .leaderboard-empty { padding: 26px 12px; text-align: center; font-size: 13px; line-height: 1.4; }
+    .leaderboard-actions { display: grid; gap: 7px; margin-top: auto; }
+
     @media (max-height: 690px) {
       .hero { margin-top: 16px; }
       .hero h1 { font-size: 48px; margin: 10px 0; }
@@ -251,6 +265,28 @@
           <div class="rule"><b>+1</b><span>день премиума</span></div>
         </div>
         <button class="primary" id="startBtn">Начать игру&nbsp; →</button>
+        <button class="secondary" id="leaderboardBtn">Таблица рекордов</button>
+      </div>
+    </section>
+
+    <section class="screen leaderboard" id="leaderboardScreen" aria-labelledby="leaderboardTitle">
+      <header class="brandbar">
+        <div class="brand"><i class="record" aria-hidden="true"></i><span>ЧТО ПОСЛУШАТЬ</span></div>
+        <span class="eyebrow">топ-10</span>
+      </header>
+      <div class="leaderboard-head">
+        <span class="eyebrow">вечный эфир</span>
+        <h1 id="leaderboardTitle">Рекорды</h1>
+        <p>Лучший результат каждого игрока. После награды продолжайте ловить релизы — скорость будет расти.</p>
+      </div>
+      <div class="leaderboard-panel">
+        <div class="leaderboard-list" id="leaderboardList">
+          <div class="leaderboard-empty">Загружаем лучшие результаты…</div>
+        </div>
+        <div class="leaderboard-actions">
+          <button class="primary" id="startFromLeaderboardBtn">Играть на рекорд&nbsp; →</button>
+          <button class="secondary" id="leaderboardBackBtn">Назад</button>
+        </div>
       </div>
     </section>
 
@@ -303,6 +339,7 @@
           <p id="failCopy">Попробуйте ещё раз — до бонуса осталось совсем немного.</p>
           <div class="modal-actions">
             <button class="primary" id="retryBtn">Ещё попытка</button>
+            <button class="secondary" id="failLeaderboardBtn">Таблица рекордов</button>
             <button class="secondary" id="homeBtn">На главную</button>
           </div>
         </div>
@@ -323,12 +360,13 @@
       <div class="result-copy">
         <span class="eyebrow">идеальная подборка</span>
         <h1 id="resultTitle">Вы поймали все релизы!</h1>
-        <p>Один день премиум-подписки ждёт вас. В прототипе награда показывается без реальной активации.</p>
+        <p>Один день премиум-подписки уже открыт. Заберите бонус или продолжайте ловить релизы и поставьте рекорд.</p>
       </div>
 
       <div class="result-actions">
         <button class="primary light" id="claimBtn">Активировать +1 день</button>
-        <button class="secondary" id="playAgainBtn" style="color:var(--yellow);border-color:var(--yellow)">Сыграть ещё раз</button>
+        <button class="secondary" id="continueRecordBtn" style="color:var(--yellow);border-color:var(--yellow)">Продолжить на рекорд&nbsp; →</button>
+        <button class="secondary" id="playAgainBtn" style="color:var(--yellow);border-color:var(--yellow)">Начать заново</button>
         <span class="result-note" id="resultNote">Демо-режим: подписка не будет изменена</span>
       </div>
     </section>
@@ -348,7 +386,7 @@
       ];
 
       const $ = (id) => document.getElementById(id);
-      const screens = { start: $('startScreen'), game: $('gameScreen'), result: $('resultScreen') };
+      const screens = { start: $('startScreen'), leaderboard: $('leaderboardScreen'), game: $('gameScreen'), result: $('resultScreen') };
       const field = $('gamefield');
       const player = $('player');
       const telegram = window.Telegram?.WebApp;
@@ -392,7 +430,8 @@
           items: [],
           playerX: 0,
           elapsed: 0,
-          spawnEvery: 1000
+          spawnEvery: 1000,
+          rewardUnlocked: false
         };
       }
 
@@ -473,7 +512,7 @@
         $(`genre-${item.genre.id}`).classList.add('caught');
         showToast(first ? `${item.genre.label}: в подборке! +100` : `${item.genre.label}: ещё один +25`);
         haptic(first ? 'medium' : 'light');
-        if (state.caught.size === GENRES.length) winGame();
+        if (!state.rewardUnlocked && state.caught.size === GENRES.length) winGame();
       }
 
       function missItem(item) {
@@ -545,17 +584,95 @@
 
       function winGame() {
         const finalScore = state.score;
+        state.rewardUnlocked = true;
         stopGame();
-        $('resultNote').textContent = `Демо-режим · результат ${finalScore} · подписка не изменена`;
+        $('resultNote').textContent = `Награда открыта · текущий результат ${finalScore}`;
         haptic('heavy');
         try { telegram?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
         setTimeout(() => showScreen('result'), 220);
       }
 
+      function continueForRecord() {
+        if (!state?.rewardUnlocked) return;
+        showScreen('game');
+        state.running = true;
+        state.paused = false;
+        lastTime = 0;
+        spawnClock = 320;
+        showToast('Режим рекорда: скорость растёт!');
+        frameId = requestAnimationFrame(loop);
+      }
+
+      function playerName() {
+        const user = telegram?.initDataUnsafe?.user;
+        return user?.username ? `@${user.username}` : (user?.first_name || 'Игрок');
+      }
+
+      function localRecords() {
+        try { return JSON.parse(localStorage.getItem('releaseCatcherRecords') || '[]'); } catch (_) { return []; }
+      }
+
+      function saveLocalRecord(score) {
+        const name = playerName();
+        const rows = localRecords().filter(row => row.name !== name);
+        rows.push({ name, score });
+        rows.sort((a, b) => b.score - a.score);
+        localStorage.setItem('releaseCatcherRecords', JSON.stringify(rows.slice(0, 10)));
+      }
+
+      function renderLeaderboard(rows, localOnly = false) {
+        const list = $('leaderboardList');
+        if (!rows.length) {
+          list.innerHTML = '<div class="leaderboard-empty">Пока рекордов нет. Станьте первым!</div>';
+          return;
+        }
+        const me = playerName();
+        list.innerHTML = rows.slice(0, 10).map((row, index) => `
+          <div class="rank-row ${row.name === me ? 'me' : ''}">
+            <span class="rank-pos">${index + 1}</span>
+            <span class="rank-name">${String(row.name || 'Игрок').replace(/[<>&"']/g, '')}</span>
+            <strong class="rank-score">${Number(row.score || 0)}</strong>
+          </div>`).join('') + (localOnly ? '<div class="leaderboard-empty">Сейчас показаны рекорды на этом устройстве. Общая таблица включится после запуска API.</div>' : '');
+      }
+
+      async function loadLeaderboard() {
+        $('leaderboardList').innerHTML = '<div class="leaderboard-empty">Загружаем лучшие результаты…</div>';
+        try {
+          const response = await fetch('/api/leaderboard', { headers: { 'X-Telegram-Init-Data': telegram?.initData || '' } });
+          if (!response.ok) throw new Error('API unavailable');
+          const data = await response.json();
+          renderLeaderboard(data.entries || []);
+        } catch (_) {
+          renderLeaderboard(localRecords(), true);
+        }
+      }
+
+      async function submitScore(score) {
+        saveLocalRecord(score);
+        try {
+          await fetch('/api/leaderboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': telegram?.initData || '' },
+            body: JSON.stringify({ score, elapsed: Math.round(state?.elapsed || 0) })
+          });
+        } catch (_) {}
+      }
+
+      function openLeaderboard() {
+        $('failOverlay').classList.remove('show');
+        showScreen('leaderboard');
+        loadLeaderboard();
+      }
+
       function failGame() {
+        const finalScore = state.score;
+        const endless = state.rewardUnlocked;
         const missing = GENRES.filter(g => !state.caught.has(g.id)).map(g => g.label.toLowerCase());
         stopGame();
-        $('failCopy').textContent = `Не хватило: ${missing.join(', ')}. Попробуйте ещё раз — жанры уже перемешаны.`;
+        submitScore(finalScore);
+        $('failCopy').textContent = endless
+          ? `Ваш результат: ${finalScore}. Он сохранён — попробуйте подняться выше в таблице.`
+          : `Не хватило: ${missing.join(', ')}. Ваш результат: ${finalScore}.`;
         $('failOverlay').classList.add('show');
         try { telegram?.HapticFeedback?.notificationOccurred('error'); } catch (_) {}
       }
@@ -577,12 +694,17 @@
       }
 
       $('startBtn').addEventListener('click', resetGame);
+      $('leaderboardBtn').addEventListener('click', openLeaderboard);
+      $('startFromLeaderboardBtn').addEventListener('click', resetGame);
+      $('leaderboardBackBtn').addEventListener('click', () => showScreen('start'));
       $('pauseBtn').addEventListener('click', pauseGame);
       $('resumeBtn').addEventListener('click', resumeGame);
       $('restartFromPauseBtn').addEventListener('click', resetGame);
       $('retryBtn').addEventListener('click', resetGame);
+      $('continueRecordBtn').addEventListener('click', continueForRecord);
       $('playAgainBtn').addEventListener('click', () => { $('claimBtn').disabled = false; $('claimBtn').textContent = 'Активировать +1 день'; resetGame(); });
       $('claimBtn').addEventListener('click', claimReward);
+      $('failLeaderboardBtn').addEventListener('click', openLeaderboard);
       $('homeBtn').addEventListener('click', () => { $('failOverlay').classList.remove('show'); showScreen('start'); });
       $('leftBtn').addEventListener('click', () => movePlayer(-field.clientWidth / 6));
       $('rightBtn').addEventListener('click', () => movePlayer(field.clientWidth / 6));
