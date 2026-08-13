@@ -1,8 +1,6 @@
-import hashlib
-import hmac
+import base64
 import json
 import os
-import secrets
 import sqlite3
 import time
 import urllib.error
@@ -11,9 +9,15 @@ import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
 PORT = int(os.environ.get("PORT", "8080"))
 DB_PATH = os.environ.get("DB_PATH", "/data/game.db")
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+BOT_ID = os.environ.get("TELEGRAM_BOT_ID", "").strip()
+TELEGRAM_PUBLIC_KEY = bytes.fromhex(
+    "e7bf03a2fa4602af4580703d88dda5bb59f32ed8b02a56c187fe7d34caed242d"
+)
 PUZZLEBOT_TOKEN = os.environ.get("PUZZLEBOT_API_TOKEN", "").strip()
 PUZZLEBOT_COMMAND = os.environ.get("PUZZLEBOT_COMMAND", "/plus_game_day").strip()
 CAMPAIGN_ID = os.environ.get("CAMPAIGN_ID", "release-catcher-2026").strip()
@@ -82,27 +86,28 @@ def init_db():
 
 
 def verify_init_data(raw):
-    if not BOT_TOKEN:
-        raise ApiError(503, "telegram_not_configured", "Telegram token is not configured")
+    if not BOT_ID or not BOT_ID.isdigit():
+        raise ApiError(503, "telegram_not_configured", "Telegram bot ID is not configured")
     if not raw:
         raise ApiError(401, "telegram_auth_required", "Open the game from Telegram")
 
     pairs = urllib.parse.parse_qsl(raw, keep_blank_values=True)
     values = dict(pairs)
-    received_hash = values.pop("hash", "")
-    if not received_hash:
-        raise ApiError(401, "telegram_hash_missing", "Telegram signature is missing")
+    values.pop("hash", None)
+    received_signature = values.pop("signature", "")
+    if not received_signature:
+        raise ApiError(401, "telegram_signature_missing", "Telegram signature is missing")
 
-    data_check_string = "\n".join(
-        f"{key}={value}" for key, value in sorted(values.items())
+    data_check_string = (
+        f"{BOT_ID}:WebAppData\n"
+        + "\n".join(f"{key}={value}" for key, value in sorted(values.items()))
     )
-    secret_key = hmac.new(
-        b"WebAppData", BOT_TOKEN.encode("utf-8"), hashlib.sha256
-    ).digest()
-    calculated_hash = hmac.new(
-        secret_key, data_check_string.encode("utf-8"), hashlib.sha256
-    ).hexdigest()
-    if not hmac.compare_digest(calculated_hash, received_hash):
+    try:
+        padding = "=" * (-len(received_signature) % 4)
+        signature = base64.urlsafe_b64decode(received_signature + padding)
+        public_key = Ed25519PublicKey.from_public_bytes(TELEGRAM_PUBLIC_KEY)
+        public_key.verify(signature, data_check_string.encode("utf-8"))
+    except (InvalidSignature, ValueError, TypeError):
         raise ApiError(401, "telegram_signature_invalid", "Telegram signature is invalid")
 
     try:
@@ -123,7 +128,6 @@ def verify_init_data(raw):
     first_name = str(user.get("first_name") or "").strip()[:64]
     player_name = f"@{username}" if username else (first_name or f"Игрок {user_id}")
     return {"id": user_id, "username": username, "player_name": player_name}
-
 
 def validate_progress(payload, session):
     try:
@@ -276,7 +280,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == "GET" and path == "/api/health":
             return 200, {
                 "ok": True,
-                "telegram_configured": bool(BOT_TOKEN),
+                "telegram_configured": bool(BOT_ID and BOT_ID.isdigit()),
                 "puzzlebot_configured": bool(PUZZLEBOT_TOKEN),
             }
 
