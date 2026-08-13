@@ -128,7 +128,8 @@
     .hud-value { display: block; font-size: 20px; font-weight: 900; line-height: 1; margin-top: 3px; }
     .lives { display: flex; gap: 3px; justify-content: flex-end; font-size: 17px; }
     .lives span.lost { filter: grayscale(1); opacity: .22; }
-    .pause { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--black); background: transparent; font-weight: 900; cursor: pointer; }
+    .pause, .menu-button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1.5px solid var(--black); background: transparent; font-weight: 900; cursor: pointer; }
+    .menu-button { font-size: 19px; line-height: 1; }
 
     .collection { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 8px; }
     .collection-item { min-width: 0; height: 31px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.32); font-size: 8px; font-weight: 840; text-transform: uppercase; overflow: hidden; }
@@ -331,7 +332,7 @@
     <section class="screen game" id="gameScreen" aria-label="Игровое поле">
       <div class="hud">
         <div class="hud-box"><span class="hud-label">Очки</span><strong class="hud-value" id="score">000</strong></div>
-        <span class="hud-actions"><button class="pause" id="pauseBtn" aria-label="Пауза">Ⅱ</button><button class="sound-toggle" type="button" aria-label="Выключить звук" aria-pressed="true">♪</button></span>
+        <span class="hud-actions"><button class="menu-button" id="gameMenuBtn" type="button" aria-label="Вернуться в меню">⌂</button><button class="pause" id="pauseBtn" aria-label="Пауза">Ⅱ</button><button class="sound-toggle" type="button" aria-label="Выключить звук" aria-pressed="true">♪</button></span>
         <div class="hud-box"><span class="hud-label">Эфир</span><div class="lives" id="lives" aria-label="Три жизни"><span>♥</span><span>♥</span><span>♥</span></div></div>
       </div>
 
@@ -356,6 +357,18 @@
         <button class="control-btn" id="leftBtn" aria-label="Влево">←</button>
         <button class="control-btn center" id="centerBtn">тащи главреда<br>или жми</button>
         <button class="control-btn" id="rightBtn" aria-label="Вправо">→</button>
+      </div>
+
+      <div class="overlay" id="menuOverlay">
+        <div class="modal">
+          <span class="eyebrow">главное меню</span>
+          <h2>Завершить попытку?</h2>
+          <p>Текущий результат не сохранится. Вы точно хотите вернуться на главную?</p>
+          <div class="modal-actions">
+            <button class="primary" id="menuStayBtn">Продолжить игру</button>
+            <button class="secondary" id="menuConfirmBtn">Вернуться в меню</button>
+          </div>
+        </div>
       </div>
 
       <div class="overlay" id="pauseOverlay">
@@ -405,6 +418,7 @@
         <button class="primary light" id="claimBtn">Активировать +1 день</button>
         <button class="secondary" id="continueRecordBtn" style="color:var(--yellow);border-color:var(--yellow)">Продолжить на рекорд&nbsp; →</button>
         <button class="secondary" id="playAgainBtn" style="color:var(--yellow);border-color:var(--yellow)">Начать заново</button>
+        <button class="secondary" id="resultHomeBtn" style="color:var(--yellow);border-color:var(--yellow)">В главное меню</button>
         <span class="result-note" id="resultNote">Демо-режим: подписка не будет изменена</span>
       </div>
     </section>
@@ -691,6 +705,28 @@
         if (state.running) frameId = requestAnimationFrame(loop);
       }
 
+      function openGameMenu() {
+        if (!state?.running) return;
+        state.paused = true;
+        $('menuOverlay').classList.add('show');
+      }
+
+      function closeGameMenu() {
+        if (!state?.running) return;
+        $('menuOverlay').classList.remove('show');
+        state.paused = false;
+        lastTime = 0;
+        frameId = requestAnimationFrame(loop);
+      }
+
+      function goToHome() {
+        $('menuOverlay').classList.remove('show');
+        $('pauseOverlay').classList.remove('show');
+        $('failOverlay').classList.remove('show');
+        stopGame();
+        showScreen('start');
+      }
+
       function pauseGame() {
         if (!state?.running) return;
         state.paused = true;
@@ -851,6 +887,10 @@
       $('leaderboardBtn').addEventListener('click', openLeaderboard);
       $('startFromLeaderboardBtn').addEventListener('click', resetGame);
       $('leaderboardBackBtn').addEventListener('click', () => showScreen('start'));
+      $('gameMenuBtn').addEventListener('click', openGameMenu);
+      $('menuStayBtn').addEventListener('click', closeGameMenu);
+      $('menuConfirmBtn').addEventListener('click', goToHome);
+      $('resultHomeBtn').addEventListener('click', goToHome);
       $('pauseBtn').addEventListener('click', pauseGame);
       $('resumeBtn').addEventListener('click', resumeGame);
       $('restartFromPauseBtn').addEventListener('click', resetGame);
