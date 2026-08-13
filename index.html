@@ -444,6 +444,7 @@
           playerX: 0,
           elapsed: 0,
           spawnEvery: 1000,
+          speedLevel: 0,
           rewardUnlocked: false
         };
       }
@@ -516,15 +517,28 @@
         toastTimer = setTimeout(() => toast.classList.remove('show'), 850);
       }
 
+      function speedLevelForScore(score) {
+        return score < 1000 ? 0 : Math.floor((score - 1000) / 200) + 1;
+      }
+
+      function speedMultiplier() {
+        return Math.pow(1.12, state?.speedLevel || 0);
+      }
+
       function catchItem(item) {
         item.element.remove();
         const first = !state.caught.has(item.genre.id);
         state.caught.add(item.genre.id);
         state.score += first ? 100 : 25;
+        const nextSpeedLevel = speedLevelForScore(state.score);
+        const speedIncreased = nextSpeedLevel > state.speedLevel;
+        state.speedLevel = nextSpeedLevel;
         $('score').textContent = String(state.score).padStart(3, '0');
         $(`genre-${item.genre.id}`).classList.add('caught');
-        showToast(first ? `${item.genre.label}: в подборке! +100` : `${item.genre.label}: ещё один +25`);
-        haptic(first ? 'medium' : 'light');
+        showToast(speedIncreased
+          ? `Темп вырос! Скорость +${Math.round((speedMultiplier() - 1) * 100)}%`
+          : (first ? `${item.genre.label}: в подборке! +100` : `${item.genre.label}: ещё один +25`));
+        haptic(speedIncreased ? 'heavy' : (first ? 'medium' : 'light'));
         if (!state.rewardUnlocked && state.caught.size === GENRES.length) winGame();
       }
 
@@ -556,7 +570,7 @@
         const survivors = [];
 
         for (const item of state.items) {
-          item.y += item.speed * dt;
+          item.y += item.speed * speedMultiplier() * dt;
           const closeX = Math.abs(item.x - state.playerX) < 70;
           const crossesBasket = item.y + 48 >= basketTop && item.y <= basketTop + 23;
           if (crossesBasket && closeX) {
