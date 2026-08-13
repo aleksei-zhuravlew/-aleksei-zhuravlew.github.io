@@ -463,6 +463,8 @@
       let toastTimer = 0;
       let pointerActive = false;
       let audioContext = null;
+      let remoteSessionId = null;
+      let progressQueue = Promise.resolve();
       let soundEnabled = (() => {
         try { return localStorage.getItem('releaseCatcherSound') !== 'off'; } catch (_) { return true; }
       })();
@@ -561,6 +563,78 @@
         }, 1050);
       }
 
+      function apiHeaders(json = false) {
+        const headers = { 'X-Telegram-Init-Data': telegram?.initData || '' };
+        if (json) headers['Content-Type'] = 'application/json';
+        return headers;
+      }
+
+      async function apiError(response) {
+        try {
+          const data = await response.json();
+          const error = new Error(data.message || 'Ошибка сервера');
+          error.code = data.error || 'api_error';
+          return error;
+        } catch (_) {
+          const error = new Error('Ошибка сервера');
+          error.code = 'api_error';
+          return error;
+        }
+      }
+
+      async function startRemoteSession() {
+        remoteSessionId = null;
+        progressQueue = Promise.resolve();
+        if (!telegram?.initData) return false;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        try {
+          const response = await fetch('/api/session/start', {
+            method: 'POST',
+            headers: apiHeaders(),
+            signal: controller.signal
+          });
+          if (!response.ok) throw await apiError(response);
+          const data = await response.json();
+          remoteSessionId = data.session_id || null;
+          return Boolean(remoteSessionId);
+        } catch (_) {
+          return false;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      function progressPayload() {
+        return {
+          session_id: remoteSessionId,
+          score: state?.score || 0,
+          misses: state?.misses || 0,
+          caught_genres: [...(state?.caught || [])]
+        };
+      }
+
+      function queueProgress() {
+        if (!remoteSessionId || !state) return Promise.resolve(null);
+        const payload = progressPayload();
+        progressQueue = progressQueue.then(async () => {
+          const response = await fetch('/api/session/progress', {
+            method: 'POST',
+            headers: apiHeaders(true),
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw await apiError(response);
+          return response.json();
+        }).catch(() => null);
+        return progressQueue;
+      }
+
+      async function beginGame() {
+        await startRemoteSession();
+        resetGame();
+      }
+
       function freshState() {
         return {
           running: false,
@@ -588,6 +662,8 @@
         GENRES.forEach(g => $(`genre-${g.id}`).classList.remove('caught'));
         $('pauseOverlay').classList.remove('show');
         $('failOverlay').classList.remove('show');
+        $('claimBtn').disabled = false;
+        $('claimBtn').textContent = 'Активировать +1 день';
         showScreen('game');
         requestAnimationFrame(() => {
           const bounds = field.getBoundingClientRect();
@@ -668,6 +744,7 @@
           : (first ? `${item.genre.label}: в подборке! +100` : `${item.genre.label}: ещё один +25`));
         haptic(speedIncreased ? 'heavy' : (first ? 'medium' : 'light'));
         const rewardCompleted = !state.rewardUnlocked && state.caught.size === GENRES.length;
+        queueProgress();
         if (rewardCompleted) winGame();
         else playSound(speedIncreased ? 'speed' : (first ? 'genre' : 'catch'));
       }
@@ -678,6 +755,7 @@
         [...$('lives').children][state.misses - 1]?.classList.add('lost');
         showToast('Релиз пролетел мимо');
         haptic('heavy');
+        queueProgress();
         if (state.misses >= 3) failGame();
         else playSound('miss');
       }
@@ -766,6 +844,7 @@
         const finalScore = state.score;
         state.rewardUnlocked = true;
         stopGame();
+        queueProgress();
         $('resultNote').textContent = `Награда открыта · текущий результат ${finalScore}`;
         haptic('heavy');
         playSound('reward');
@@ -830,13 +909,7 @@
 
       async function submitScore(score) {
         saveLocalRecord(score);
-        try {
-          await fetch('/api/leaderboard', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': telegram?.initData || '' },
-            body: JSON.stringify({ score, elapsed: Math.round(state?.elapsed || 0) })
-          });
-        } catch (_) {}
+        await queueProgress();
       }
 
       function openLeaderboard() {
@@ -859,14 +932,47 @@
         try { telegram?.HapticFeedback?.notificationOccurred('error'); } catch (_) {}
       }
 
-      function claimReward() {
+      async function claimReward() {
         const button = $('claimBtn');
-        button.textContent = '✓ Демо-награда активирована';
+        if (!telegram?.initData || !remoteSessionId) {
+          $('resultNote').textContent = 'Откройте игру кнопкой внутри Telegram, чтобы получить награду.';
+          haptic('heavy');
+          return;
+        }
+
         button.disabled = true;
-        $('resultNote').textContent = 'Готово! В рабочей версии здесь подключается API подписки.';
-        haptic('heavy');
-        playSound('reward');
-        try { telegram?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
+        button.textContent = 'Активируем…';
+        try {
+          await queueProgress();
+          const response = await fetch('/api/reward/claim', {
+            method: 'POST',
+            headers: apiHeaders(true),
+            body: JSON.stringify(progressPayload())
+          });
+          if (!response.ok) throw await apiError(response);
+          const data = await response.json();
+          button.textContent = data.already_issued
+            ? '✓ Награда уже получена'
+            : '✓ +1 день активирован';
+          $('resultNote').textContent = data.already_issued
+            ? 'Этот бонус уже был начислен вашему аккаунту.'
+            : 'Готово! Команда на начисление одного дня отправлена боту.';
+          haptic('heavy');
+          playSound('reward');
+          try { telegram?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
+        } catch (error) {
+          const messages = {
+            telegram_auth_expired: 'Сессия Telegram устарела. Закройте и заново откройте игру.',
+            reward_locked: 'Сервер ещё проверяет победу. Попробуйте ещё раз.',
+            reward_processing: 'Награда уже обрабатывается. Подождите несколько секунд.',
+            puzzlebot_not_configured: 'Начисление пока настраивается. Попробуйте позже.',
+            puzzlebot_failed: 'Бот временно не ответил. Попробуйте ещё раз.'
+          };
+          $('resultNote').textContent = messages[error.code] || 'Не удалось начислить награду. Попробуйте ещё раз.';
+          button.disabled = false;
+          button.textContent = 'Повторить активацию +1 дня';
+          try { telegram?.HapticFeedback?.notificationOccurred('error'); } catch (_) {}
+        }
       }
 
       function positionFromPointer(event) {
@@ -896,9 +1002,9 @@
         }
       });
 
-      $('startBtn').addEventListener('click', resetGame);
+      $('startBtn').addEventListener('click', beginGame);
       $('leaderboardBtn').addEventListener('click', openLeaderboard);
-      $('startFromLeaderboardBtn').addEventListener('click', resetGame);
+      $('startFromLeaderboardBtn').addEventListener('click', beginGame);
       $('leaderboardBackBtn').addEventListener('click', () => showScreen('start'));
       $('gameMenuBtn').addEventListener('click', openGameMenu);
       $('menuStayBtn').addEventListener('click', closeGameMenu);
@@ -906,10 +1012,10 @@
       $('resultHomeBtn').addEventListener('click', goToHome);
       $('pauseBtn').addEventListener('click', pauseGame);
       $('resumeBtn').addEventListener('click', resumeGame);
-      $('restartFromPauseBtn').addEventListener('click', resetGame);
-      $('retryBtn').addEventListener('click', resetGame);
+      $('restartFromPauseBtn').addEventListener('click', beginGame);
+      $('retryBtn').addEventListener('click', beginGame);
       $('continueRecordBtn').addEventListener('click', continueForRecord);
-      $('playAgainBtn').addEventListener('click', () => { $('claimBtn').disabled = false; $('claimBtn').textContent = 'Активировать +1 день'; resetGame(); });
+      $('playAgainBtn').addEventListener('click', beginGame);
       $('claimBtn').addEventListener('click', claimReward);
       $('failLeaderboardBtn').addEventListener('click', openLeaderboard);
       $('homeBtn').addEventListener('click', () => { $('failOverlay').classList.remove('show'); showScreen('start'); });
