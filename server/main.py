@@ -321,13 +321,15 @@ class Handler(BaseHTTPRequestHandler):
             payload = self.read_json()
             with connect() as db:
                 progress = apply_progress(db, payload, user)
+
+            reward_id = f"{CAMPAIGN_ID}:{user['id']}"
+            now = int(time.time())
+            with connect() as db:
+                db.execute("BEGIN IMMEDIATE")
                 session = get_session(db, progress["session_id"], user["id"])
                 if not session["reward_unlocked"]:
                     raise ApiError(409, "reward_locked", "Collect all six genres first")
 
-                reward_id = f"{CAMPAIGN_ID}:{user['id']}"
-                now = int(time.time())
-                db.execute("BEGIN IMMEDIATE")
                 reward = db.execute(
                     "SELECT * FROM rewards WHERE campaign_id = ? AND user_id = ?",
                     (CAMPAIGN_ID, user["id"]),
