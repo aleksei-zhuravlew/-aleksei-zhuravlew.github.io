@@ -935,7 +935,9 @@
           const response = await fetch('/api/leaderboard', { headers: { 'X-Telegram-Init-Data': telegram?.initData || '' } });
           if (!response.ok) throw new Error('API unavailable');
           const data = await response.json();
-          renderLeaderboard(data.entries || []);
+          const remoteRecords = data.entries || [];
+          const deviceRecords = localRecords();
+          renderLeaderboard(remoteRecords.length ? remoteRecords : deviceRecords, !remoteRecords.length && deviceRecords.length > 0);
         } catch (_) {
           renderLeaderboard(localRecords(), true);
         }
