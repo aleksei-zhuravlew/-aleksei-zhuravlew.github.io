@@ -150,6 +150,50 @@
       touch-action: none;
     }
 
+    .rank-badge {
+      position: absolute;
+      z-index: 2;
+      top: 58px;
+      right: 8px;
+      max-width: min(58%, 185px);
+      padding: 6px 9px 7px;
+      overflow: hidden;
+      border: 1px solid rgba(255,242,122,.72);
+      border-radius: 11px;
+      background: rgba(9,10,8,.82);
+      color: var(--yellow);
+      text-align: right;
+      pointer-events: none;
+      box-shadow: 0 4px 14px rgba(9,10,8,.12);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      animation: rankEnter .45s ease both;
+    }
+    .rank-badge span { display: block; font-size: 6px; font-weight: 850; letter-spacing: .14em; line-height: 1; text-transform: uppercase; opacity: .62; }
+    .rank-badge strong { display: block; margin-top: 3px; font-size: 9px; font-weight: 900; letter-spacing: .02em; line-height: 1.08; text-transform: uppercase; }
+    .rank-badge::after {
+      content: "";
+      position: absolute;
+      inset: -30% auto -30% -45%;
+      width: 35%;
+      opacity: 0;
+      transform: skewX(-18deg);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.72), transparent);
+    }
+    .rank-badge.promoted { z-index: 5; animation: rankPromote 1.35s cubic-bezier(.2,.8,.2,1) both; }
+    .rank-badge.promoted::after { animation: rankSheen 1.05s ease .08s both; }
+    @keyframes rankEnter { from { opacity: 0; transform: translateY(-5px); } }
+    @keyframes rankPromote {
+      0% { transform: scale(.96); box-shadow: 0 4px 14px rgba(9,10,8,.12); }
+      24% { transform: scale(1.08) rotate(-1deg); box-shadow: 0 0 0 4px rgba(255,233,0,.22), 0 8px 22px rgba(9,10,8,.2); }
+      55% { transform: scale(1.02) rotate(.5deg); }
+      100% { transform: none; box-shadow: 0 4px 14px rgba(9,10,8,.12); }
+    }
+    @keyframes rankSheen { 0% { left: -45%; opacity: 0; } 25% { opacity: .8; } 100% { left: 125%; opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .rank-badge, .rank-badge.promoted, .rank-badge.promoted::after { animation: none; }
+    }
+
     .chutes { position: absolute; z-index: 4; left: 0; right: 0; top: 0; display: grid; grid-template-columns: repeat(6, 1fr); }
     .chute { min-width: 0; height: 49px; padding-top: 9px; text-align: center; background: var(--black); color: var(--yellow); border-right: 1px solid rgba(255,255,255,.16); font-size: 8px; line-height: 1.05; font-weight: 850; text-transform: uppercase; }
     .chute::after { content: ""; display: block; width: 24px; height: 7px; margin: 7px auto 0; border-radius: 50%; background: #393a30; box-shadow: inset 0 1px 3px #000; }
@@ -353,6 +397,10 @@
 
       <div class="gamefield" id="gamefield">
         <div class="chutes" id="chutes"></div>
+        <div class="rank-badge" id="rankBadge" role="status" aria-live="polite">
+          <span id="rankLabel">Статус</span>
+          <strong id="rankName">Новобранец</strong>
+        </div>
         <div class="player" id="player">
           <div class="leg left"><i class="shoe"></i></div>
           <div class="leg right"><i class="shoe"></i></div>
@@ -450,6 +498,15 @@
         { id: 'folk', label: 'Фолк', short: 'фолк', color: '#ffae4d' }
       ];
 
+      const RANKS = [
+        { score: 0, label: 'Новобранец' },
+        { score: 1500, label: 'Младший редактор' },
+        { score: 2000, label: 'Редактор' },
+        { score: 3000, label: 'Куратор направления' },
+        { score: 4000, label: 'Гига редактор' },
+        { score: 5000, label: 'Паша тебе завидует' }
+      ];
+
       const $ = (id) => document.getElementById(id);
       const screens = { start: $('startScreen'), leaderboard: $('leaderboardScreen'), game: $('gameScreen'), result: $('resultScreen') };
       const field = $('gamefield');
@@ -461,6 +518,7 @@
       let lastTime = 0;
       let spawnClock = 0;
       let toastTimer = 0;
+      let rankTimer = 0;
       let pointerActive = false;
       let audioContext = null;
       let activeVoice = null;
@@ -677,6 +735,7 @@
           elapsed: 0,
           spawnEvery: 1000,
           speedLevel: 0,
+          rankIndex: 0,
           rewardUnlocked: false
         };
       }
@@ -688,6 +747,7 @@
         lastTime = 0;
         spawnClock = 500;
         $('score').textContent = '000';
+        updateRank(0);
         [...$('lives').children].forEach(el => el.classList.remove('lost'));
         GENRES.forEach(g => $(`genre-${g.id}`).classList.remove('caught'));
         $('pauseOverlay').classList.remove('show');
@@ -759,6 +819,28 @@
         return Math.pow(1.12, state?.speedLevel || 0);
       }
 
+      function rankIndexForScore(score) {
+        return RANKS.reduce((current, rank, index) => score >= rank.score ? index : current, 0);
+      }
+
+      function updateRank(score, announce = false) {
+        const index = rankIndexForScore(score);
+        const badge = $('rankBadge');
+        $('rankName').textContent = RANKS[index].label;
+        $('rankLabel').textContent = announce ? 'Новый статус' : 'Статус';
+        if (announce) {
+          clearTimeout(rankTimer);
+          badge.classList.remove('promoted');
+          void badge.offsetWidth;
+          badge.classList.add('promoted');
+          rankTimer = setTimeout(() => {
+            badge.classList.remove('promoted');
+            $('rankLabel').textContent = 'Статус';
+          }, 1450);
+        }
+        return index;
+      }
+
       function catchItem(item) {
         item.element.remove();
         const first = !state.caught.has(item.genre.id);
@@ -767,16 +849,24 @@
         const nextSpeedLevel = speedLevelForScore(state.score);
         const speedIncreased = nextSpeedLevel > state.speedLevel;
         state.speedLevel = nextSpeedLevel;
+        const nextRankIndex = rankIndexForScore(state.score);
+        const rankIncreased = nextRankIndex > state.rankIndex;
+        if (rankIncreased) {
+          state.rankIndex = nextRankIndex;
+          updateRank(state.score, true);
+        }
         $('score').textContent = String(state.score).padStart(3, '0');
         $(`genre-${item.genre.id}`).classList.add('caught');
-        showToast(speedIncreased
+        showToast(rankIncreased
+          ? `Новый статус: ${RANKS[nextRankIndex].label}`
+          : speedIncreased
           ? `Темп вырос! Скорость +${Math.round((speedMultiplier() - 1) * 100)}%`
           : (first ? `${item.genre.label}: в подборке! +100` : `${item.genre.label}: ещё один +25`));
-        haptic(speedIncreased ? 'heavy' : (first ? 'medium' : 'light'));
+        haptic(rankIncreased || speedIncreased ? 'heavy' : (first ? 'medium' : 'light'));
         const rewardCompleted = !state.rewardUnlocked && state.caught.size === GENRES.length;
         queueProgress();
         if (rewardCompleted) winGame();
-        else playSound(speedIncreased ? 'speed' : (first ? 'genre' : 'catch'));
+        else playSound(rankIncreased ? 'genre' : speedIncreased ? 'speed' : (first ? 'genre' : 'catch'));
       }
 
       function missItem(item) {
