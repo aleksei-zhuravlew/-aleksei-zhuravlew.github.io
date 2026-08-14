@@ -877,7 +877,7 @@
         const finalScore = state.score;
         state.rewardUnlocked = true;
         stopGame();
-        queueProgress();
+        submitScore(finalScore);
         $('resultNote').textContent = `Награда открыта · текущий результат ${finalScore}`;
         haptic('heavy');
         playSound('reward');
