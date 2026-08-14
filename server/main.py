@@ -54,6 +54,7 @@ def init_db():
             score INTEGER NOT NULL DEFAULT 0,
             caught_genres TEXT NOT NULL DEFAULT '[]',
             misses INTEGER NOT NULL DEFAULT 0,
+            life_pickups INTEGER NOT NULL DEFAULT 0,
             started_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL,
             reward_unlocked INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +84,11 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_leaderboard_score
             ON leaderboard(best_score DESC, updated_at ASC);
         """)
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}
+        if "life_pickups" not in columns:
+            db.execute(
+                "ALTER TABLE sessions ADD COLUMN life_pickups INTEGER NOT NULL DEFAULT 0"
+            )
 
 
 def verify_init_data(raw):
@@ -133,8 +139,9 @@ def validate_progress(payload, session):
     try:
         score = int(payload.get("score", 0))
         misses = int(payload.get("misses", 0))
+        life_pickups = int(payload.get("life_pickups", 0))
     except (TypeError, ValueError):
-        raise ApiError(400, "progress_invalid", "Score or misses are invalid")
+        raise ApiError(400, "progress_invalid", "Score, misses, or life pickups are invalid")
 
     genres = payload.get("caught_genres", [])
     if not isinstance(genres, list):
@@ -142,10 +149,21 @@ def validate_progress(payload, session):
     genres = list(dict.fromkeys(str(item) for item in genres))
     if not set(genres).issubset(ALLOWED_GENRES):
         raise ApiError(400, "genres_invalid", "Unknown genre")
-    if score < 0 or score > 10_000_000 or misses < 0 or misses > 3:
+    if (
+        score < 0
+        or score > 10_000_000
+        or misses < 0
+        or misses > 3
+        or life_pickups < 0
+        or life_pickups > score // 1000
+    ):
         raise ApiError(400, "progress_invalid", "Progress is out of range")
-    if score < session["score"] or misses < session["misses"]:
+    if score < session["score"] or life_pickups < session["life_pickups"]:
         raise ApiError(409, "progress_rewind", "Progress cannot go backwards")
+    restored_lives = max(0, session["misses"] - misses)
+    new_life_pickups = life_pickups - session["life_pickups"]
+    if restored_lives > new_life_pickups:
+        raise ApiError(409, "life_restore_invalid", "A caught life is required")
 
     unique_count = len(genres)
     remainder = score - unique_count * 100
@@ -163,7 +181,7 @@ def validate_progress(payload, session):
         and misses < 3
         and elapsed >= REWARD_MIN_SECONDS
     )
-    return score, misses, genres, reward_unlocked
+    return score, misses, life_pickups, genres, reward_unlocked
 
 
 def get_session(db, session_id, user_id):
@@ -179,16 +197,17 @@ def get_session(db, session_id, user_id):
 def apply_progress(db, payload, user):
     session_id = str(payload.get("session_id") or "")
     session = get_session(db, session_id, user["id"])
-    score, misses, genres, reward_unlocked = validate_progress(payload, session)
+    score, misses, life_pickups, genres, reward_unlocked = validate_progress(payload, session)
     now = int(time.time())
     db.execute(
         """UPDATE sessions
-           SET score = ?, misses = ?, caught_genres = ?, reward_unlocked = ?,
+           SET score = ?, misses = ?, life_pickups = ?, caught_genres = ?, reward_unlocked = ?,
                updated_at = ?, status = ?
            WHERE id = ?""",
         (
             score,
             misses,
+            life_pickups,
             json.dumps(genres, ensure_ascii=False),
             1 if reward_unlocked or session["reward_unlocked"] else 0,
             now,
