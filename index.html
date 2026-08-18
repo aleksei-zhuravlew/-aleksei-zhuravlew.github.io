@@ -288,6 +288,7 @@
     .contact-telegram { display: grid; place-items: center; text-decoration: none; }
     .contact-handle { display: block; margin-top: 5px; font-size: 12px; font-weight: 850; opacity: .62; }
     .secondary { width: 100%; min-height: 48px; border: 1.5px solid var(--black); border-radius: 14px; background: transparent; font-weight: 800; cursor: pointer; }
+    .main-app-button { width: 100%; min-height: 34px; padding: 5px 7px; border: 1.5px solid var(--black); border-radius: 12px; background: var(--black); color: var(--yellow); font-size: 9px; font-weight: 850; line-height: 1; letter-spacing: .055em; text-transform: uppercase; cursor: pointer; }
 
     /* Result */
     .result { text-align: center; justify-content: flex-start; gap: 12px; overflow-y: auto; background: var(--black); color: var(--yellow); scrollbar-width: thin; }
@@ -358,7 +359,7 @@
     <section class="screen start active" id="startScreen" aria-labelledby="gameTitle">
       <header class="brandbar">
         <div class="brand"><i class="record" aria-hidden="true"></i><span class="brand-copy"><span class="brand-name">ЧТО ПОСЛУШАТЬ</span><span class="brand-credit">Developed by Alexey Zhuravlev</span></span></div>
-        <span class="header-tools"><span class="eyebrow">мини-игра</span><span class="header-controls"><button class="sound-toggle" type="button" aria-label="Выключить звук" aria-pressed="true">♪</button><button class="contact-button" id="contactBtn" type="button">Контакты</button></span></span>
+        <span class="header-tools"><span class="eyebrow">мини-игра</span><span class="header-controls"><button class="sound-toggle" type="button" aria-label="Выключить звук" aria-pressed="true">♪</button><button class="contact-button" id="contactBtn" type="button">Контакты</button></span><button class="main-app-button" id="mainAppBtn" type="button" aria-label="Вернуться в главное приложение">Выйти</button></span>
       </header>
 
       <div class="hero">
@@ -534,6 +535,8 @@
         { score: 4000, label: 'Гига редактор' },
         { score: 5000, label: 'Паша тебе завидует' }
       ];
+
+      const MAIN_APP_URL = 'https://t.me/ChtoMusicBot?startapp=5c254fbfac28fb44';
 
       const $ = (id) => document.getElementById(id);
       const screens = { start: $('startScreen'), leaderboard: $('leaderboardScreen'), game: $('gameScreen'), result: $('resultScreen') };
@@ -1189,6 +1192,15 @@
         updatePlayer();
       }
 
+      function openMainApp() {
+        haptic('light');
+        if (telegram?.openTelegramLink) {
+          telegram.openTelegramLink(MAIN_APP_URL);
+          return;
+        }
+        window.location.assign(MAIN_APP_URL);
+      }
+
       document.addEventListener('pointerdown', event => {
         const button = event.target.closest('button');
         if (!button) return;
@@ -1211,6 +1223,7 @@
 
       $('startBtn').addEventListener('click', beginGame);
       $('leaderboardBtn').addEventListener('click', openLeaderboard);
+      $('mainAppBtn').addEventListener('click', openMainApp);
       $('startFromLeaderboardBtn').addEventListener('click', beginGame);
       $('leaderboardBackBtn').addEventListener('click', () => showScreen('start'));
       $('gameMenuBtn').addEventListener('click', openGameMenu);
